@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель</title>
+    <link rel="stylesheet" href="style.css"> <style>
+        /* Дополнительные стили только для админки */
+        body { padding: 15px; }
+        .admin-form { background-color: var(--secondary-bg-color); padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input { width: 95%; padding: 8px; border-radius: 5px; border: 1px solid var(--hint-color); }
+        .form-button { width: 100%; padding: 10px; font-size: 16px; background-color: var(--button-color); color: var(--button-text-color); border: none; border-radius: 8px; cursor: pointer; }
+        .product-item button { background-color: #ff3b30; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">Управление товарами</h1>
+        </header>
+
+        <section id="admin-content" class="hidden">
+            <div class="admin-form">
+                <h2 id="form-title">Добавить товар</h2>
+                <div class="form-group">
+                    <label for="productName">Название</label>
+                    <input type="text" id="productName" placeholder="Батарея Dyson">
+                </div>
+                <div class="form-group">
+                    <label for="productPoints">Очки</label>
+                    <input type="number" id="productPoints" placeholder="5">
+                </div>
+                <button id="saveButton" class="form-button">Сохранить</button>
+                <input type="hidden" id="productId">
+            </div>
+
+            <div class="product-list-container">
+                <h2>Список товаров</h2>
+                <div id="adminProductList" class="product-list"></div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="firebase-init.js"></script>
+    <script src="admin.js"></script> </body>
+</html>
