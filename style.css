@@ -86,6 +86,10 @@ body {
     color: var(--button-color);
 }
 
+.product-list-container {
+    margin-top: 25px;
+}
+
 .product-list-container h2 {
     margin-bottom: 10px;
 }
@@ -237,7 +241,55 @@ body {
     font-weight: bold;
 }
 
-/* Стиль для кнопки админки */
 .navigation button#navAdmin {
     color: #ff3b30; /* Красный цвет для привлечения внимания */
+}
+
+/* СТИЛИ ДЛЯ БЛОКА ОБЩЕЙ СТАТИСТИКИ НА ГЛАВНОМ ЭКРАНЕ */
+.stats-overview {
+    background-color: var(--secondary-bg-color);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-item:first-child {
+    margin-bottom: 15px;
+}
+
+.progress-bar-container.weekly .progress-bar {
+    background-color: #ff9500; /* Оранжевый для недельного */
+}
+
+.progress-bar-container.monthly .progress-bar {
+    background-color: #5856d6; /* Фиолетовый для месячного */
+}
+
+.progress-bar-container.weekly,
+.progress-bar-container.monthly {
+    height: 8px; /* Делаем их чуть тоньше */
+}
+
+/* СТИЛИ ДЛЯ СПИСКА СЕГОДНЯШНИХ ЗАКАЗОВ */
+.order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: var(--secondary-bg-color);
+    padding: 10px 15px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+}
+
+.delete-order-btn {
+    background-color: #ff3b30;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+    cursor: pointer;
+    font-weight: bold;
+    line-height: 28px;
 }
