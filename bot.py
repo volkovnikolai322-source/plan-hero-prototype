@@ -1,3 +1,5 @@
+print("!!! ЗАПУЩЕНА ИСПРАВЛЕННАЯ ВЕРСИЯ ФАЙЛА !!!")
+
 import logging
 import json
 from config import BOT_TOKEN  # Импортируем токен из config.py
