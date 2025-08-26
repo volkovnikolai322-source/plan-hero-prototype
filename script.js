@@ -19,16 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const prevMonthBtn = document.getElementById('prevMonthBtn');
     const nextMonthBtn = document.getElementById('nextMonthBtn');
 
-    // --- Каталог товаров ---
-    const products = [
-        { id: 1, name: 'Батарея Dyson', points: 5 },
-        { id: 2, name: 'Main Body Dyson', points: 10 },
-        { id: 3, name: 'Наушники Shokz', points: 10 },
-        { id: 4, name: 'Аппарат Cefaly', points: 45 },
-        { id: 5, name: 'Фильтр Dyson', points: 3 },
-        { id: 6, name: 'Стайлер Dyson', points: 20 },
-    ];
-
     // --- Состояние приложения ---
     let state = {
         dailyGoal: 100,
@@ -41,6 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'test-user-id';
     const userDocRef = db.collection('users').doc(userId);
     const dailyProgressCollectionRef = userDocRef.collection('daily_progress');
+    // --- НОВОЕ: Ссылка на коллекцию товаров ---
+    const productsCollectionRef = db.collection('products');
 
     // --- Функции ---
 
@@ -51,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.reservePoints = userDoc.data().reservePoints || 0;
             }
 
-            const todayId = new Date().toISOString().split('T')[0]; // Формат YYYY-MM-DD
+            const todayId = new Date().toISOString().split('T')[0];
             const todayDoc = await dailyProgressCollectionRef.doc(todayId).get();
             if (todayDoc.exists) {
                 state.currentPoints = todayDoc.data().points || 0;
@@ -102,22 +94,40 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function renderProductList() {
-        productListEl.innerHTML = '';
-        products.forEach(product => {
-            const item = document.createElement('div');
-            item.className = 'product-item';
-            item.innerHTML = `
-                <div>
-                    <div class="product-info">${product.name}</div>
-                    <div class="product-points">+${product.points} очков</div>
-                </div>
-                <div class="add-button">+</div>
-            `;
-            item.addEventListener('click', () => addProduct(product));
-            productListEl.appendChild(item);
-        });
+    // --- НОВОЕ: Функция загрузки и отрисовки товаров ---
+    async function renderProductList() {
+        productListEl.innerHTML = '<p>Загрузка товаров...</p>'; // Показываем индикатор загрузки
+        try {
+            const snapshot = await productsCollectionRef.orderBy("name").get();
+            productListEl.innerHTML = ''; // Очищаем список
+            if (snapshot.empty) {
+                productListEl.innerHTML = '<p>Товары не найдены. Добавьте их в базе данных Firebase.</p>';
+                return;
+            }
+            snapshot.forEach(doc => {
+                const product = {
+                    id: doc.id,
+                    ...doc.data()
+                };
+                
+                const item = document.createElement('div');
+                item.className = 'product-item';
+                item.innerHTML = `
+                    <div>
+                        <div class="product-info">${product.name}</div>
+                        <div class="product-points">+${product.points} очков</div>
+                    </div>
+                    <div class="add-button">+</div>
+                `;
+                item.addEventListener('click', () => addProduct(product));
+                productListEl.appendChild(item);
+            });
+        } catch (error) {
+            console.error("Ошибка загрузки товаров: ", error);
+            productListEl.innerHTML = '<p>Не удалось загрузить список товаров.</p>';
+        }
     }
+
 
     // --- Логика навигации и статистики ---
 
@@ -180,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calendarGridEl.innerHTML = '';
         const year = date.getFullYear();
         const month = date.getMonth();
-        monthYearEl.textContent = date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        monthYearEl.textContent = date.toLocaleString('ru-RU', { month: 'long', year: 'numeric' });
 
         const firstDayOfMonth = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -214,6 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Инициализация ---
-    renderProductList();
+    renderProductList(); // Запускаем загрузку товаров
     loadState();
 });
