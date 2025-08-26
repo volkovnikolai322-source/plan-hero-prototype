@@ -27,11 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let currentMonthDate = new Date();
     
-    // --- Настройка Firebase ---
+    // --- Настройка Firebase и Админки ---
+    const ADMIN_USER_ID = 123456789; // <-- ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
     const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'test-user-id';
     const userDocRef = db.collection('users').doc(userId);
     const dailyProgressCollectionRef = userDocRef.collection('daily_progress');
-    // --- НОВОЕ: Ссылка на коллекцию товаров ---
     const productsCollectionRef = db.collection('products');
 
     // --- Функции ---
@@ -94,22 +94,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- НОВОЕ: Функция загрузки и отрисовки товаров ---
     async function renderProductList() {
-        productListEl.innerHTML = '<p>Загрузка товаров...</p>'; // Показываем индикатор загрузки
+        productListEl.innerHTML = '<p>Загрузка товаров...</p>';
         try {
             const snapshot = await productsCollectionRef.orderBy("name").get();
-            productListEl.innerHTML = ''; // Очищаем список
+            productListEl.innerHTML = '';
             if (snapshot.empty) {
-                productListEl.innerHTML = '<p>Товары не найдены. Добавьте их в базе данных Firebase.</p>';
+                productListEl.innerHTML = '<p>Товары не найдены. Добавьте их в админ-панели.</p>';
                 return;
             }
             snapshot.forEach(doc => {
-                const product = {
-                    id: doc.id,
-                    ...doc.data()
-                };
-                
+                const product = { id: doc.id, ...doc.data() };
                 const item = document.createElement('div');
                 item.className = 'product-item';
                 item.innerHTML = `
@@ -127,7 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
             productListEl.innerHTML = '<p>Не удалось загрузить список товаров.</p>';
         }
     }
-
 
     // --- Логика навигации и статистики ---
 
@@ -203,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             calendarGridEl.appendChild(dayEl);
         });
         
-        let startDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1; // Понедельник = 0
+        let startDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1;
 
         for (let i = 0; i < startDay; i++) {
             calendarGridEl.appendChild(document.createElement('div'));
@@ -224,6 +218,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Инициализация ---
-    renderProductList(); // Запускаем загрузку товаров
+    
+    // Показываем кнопку админки, если ID совпадает
+    if (userId === String(ADMIN_USER_ID)) {
+        const nav = document.querySelector('.navigation');
+        const adminButton = document.createElement('button');
+        adminButton.id = 'navAdmin';
+        adminButton.textContent = 'Админка ⚙️';
+        adminButton.addEventListener('click', () => {
+            window.location.href = 'admin.html';
+        });
+        nav.appendChild(adminButton);
+    }
+
+    renderProductList();
     loadState();
 });
