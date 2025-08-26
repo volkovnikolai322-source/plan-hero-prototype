@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- ПРОСТАЯ ЗАЩИТА ПАРОЛЕМ ---
-    const ADMIN_PASSWORD = "admin"; // Можете поменять на свой пароль
+    const ADMIN_PASSWORD = "150278"; // Можете поменять на свой пароль
     const password = prompt("Введите пароль администратора:");
 
     if (password !== ADMIN_PASSWORD) {
