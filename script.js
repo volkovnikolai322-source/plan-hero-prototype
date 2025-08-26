@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMonthDate = new Date();
     
     // --- Настройка Firebase и Админки ---
-    const ADMIN_USER_ID = 123456789; // <-- ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
+    const ADMIN_USER_ID = 54276364; // <-- ЗАМЕНИТЕ НА ВАШ TELEGRAM ID
     const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'test-user-id';
     const userDocRef = db.collection('users').doc(userId);
     const dailyProgressCollectionRef = userDocRef.collection('daily_progress');
