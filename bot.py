@@ -13,7 +13,7 @@ from telegram.ext import (
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from pytz import timezone
 
-WEB_APP_URL = "https://your-username.github.io/plan-hero-prototype/webapp/"
+WEB_APP_URL = "https://volkovnikolai322-source.github.io/plan-hero-prototype/"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
