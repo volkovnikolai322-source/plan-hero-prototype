@@ -6,7 +6,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # Вставьте сюда токен вашего бота
 BOT_TOKEN = "7569227332:AAGMTQ_-IbL9ZxvYq5j1VuxPGmPkPvpxUks" 
 # URL, где будет размещено ваше веб-приложение (важно, чтобы был HTTPS)
-WEB_APP_URL = "https://your-username.github.io/plan-hero-prototype/webapp/" 
+WEB_APP_URL = "https://volkovnikolai322-source.github.io/plan-hero-prototype/" 
 
 # Настройка логирования для отладки
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
