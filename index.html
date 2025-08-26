@@ -27,7 +27,8 @@
 
             <main class="product-list-container">
                 <h2>Добавить заказ</h2>
-                <div id="productList" class="product-list"></div>
+                <div id="productList" class="product-list">
+                    </div>
             </main>
         </div>
 
@@ -45,15 +46,17 @@
                     <h2 id="monthYear"></h2>
                     <button id="nextMonthBtn">&gt;</button>
                 </div>
-                <div class="calendar-grid" id="calendarGrid"></div>
+                <div class="calendar-grid" id="calendarGrid">
+                    </div>
             </section>
         </div>
 
-        <nav class="navigation">
-            <button id="navMain" class="active">Главная</button>
-            <button id="navStats">Статистика</button>
-        </nav>
     </div>
+
+    <nav class="navigation">
+        <button id="navMain" class="active">Главная</button>
+        <button id="navStats">Статистика</button>
+    </nav>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
