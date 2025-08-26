@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const tg = window.Telegram.WebApp;
     tg.ready();
-    tg.expand(); // Растягиваем приложение на весь экран
+    tg.expand();
 
     // --- Элементы UI ---
     const progressTextEl = document.getElementById('progressText');
@@ -25,41 +25,66 @@ document.addEventListener('DOMContentLoaded', () => {
         dailyGoal: 100,
         currentPoints: 0,
         reservePoints: 0,
-        lastUpdate: new Date().toDateString() // Для сброса прогресса на следующий день
     };
+    
+    // Создаем уникальный ID пользователя из данных Telegram
+    const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'test-user-id';
+    // Получаем ссылку на "документ" пользователя в базе данных
+    const userDocRef = db.collection('users').doc(userId);
 
     // --- Функции ---
 
-    // Загрузка состояния из localStorage
-    function loadState() {
-        const savedState = JSON.parse(localStorage.getItem('planHeroState'));
-        if (savedState) {
-            // Если наступил новый день - сбрасываем дневной прогресс
-            if (new Date().toDateString() !== savedState.lastUpdate) {
-                // Автоматически используем резерв для закрытия вчерашнего дня, если нужно
-                const neededPoints = Math.max(0, state.dailyGoal - savedState.currentPoints);
-                if (savedState.reservePoints >= neededPoints) {
-                    savedState.reservePoints -= neededPoints;
+    // ЗАГРУЗКА данных из Firebase
+    async function loadState() {
+        try {
+            const doc = await userDocRef.get();
+            if (doc.exists) {
+                const data = doc.data();
+                const today = new Date().toDateString();
+                // Проверяем, когда данные обновлялись в последний раз
+                const lastUpdate = data.lastUpdate ? new Date(data.lastUpdate).toDateString() : null;
+
+                // Если наступил новый день, сбрасываем дневной прогресс
+                if (today !== lastUpdate) {
+                    state.currentPoints = 0;
+                    state.reservePoints = data.reservePoints || 0;
+                    // Сохраняем сброшенный прогресс в базу
+                    await saveData({ currentPoints: 0, lastUpdate: new Date().toISOString() });
+                } else {
+                    // Если день тот же, просто загружаем данные
+                    state.currentPoints = data.currentPoints || 0;
+                    state.reservePoints = data.reservePoints || 0;
                 }
-                // Сбрасываем только дневные очки
-                savedState.currentPoints = 0;
-                savedState.lastUpdate = new Date().toDateString();
+            } else {
+                // Если пользователь зашел впервые, создаем для него запись в базе
+                await saveData({
+                    currentPoints: 0,
+                    reservePoints: 0,
+                    lastUpdate: new Date().toISOString(),
+                    telegramUsername: tg.initDataUnsafe?.user?.username || 'unknown'
+                });
             }
-            state = savedState;
+        } catch (error) {
+            console.error("Ошибка загрузки данных из Firebase:", error);
+            alert("Не удалось подключиться к базе данных. Проверьте подключение к интернету.");
         }
-        saveState(); // Сохраняем (на случай, если был сброс)
+        updateUI(); // Обновляем интерфейс после загрузки
     }
 
-    // Сохранение состояния в localStorage
-    function saveState() {
-        localStorage.setItem('planHeroState', JSON.stringify(state));
+    // СОХРАНЕНИЕ данных в Firebase
+    async function saveData(dataToSave) {
+        try {
+            // Метод set с { merge: true } обновляет только указанные поля, не стирая остальные
+            await userDocRef.set(dataToSave, { merge: true });
+        } catch (error) {
+            console.error("Ошибка сохранения данных в Firebase:", error);
+        }
     }
 
-    // Обновление всех элементов UI
+    // Обновление всех элементов интерфейса
     function updateUI() {
         progressTextEl.textContent = `${state.currentPoints} / ${state.dailyGoal}`;
         reservePointsEl.textContent = state.reservePoints;
-
         const progressPercent = Math.min(100, (state.currentPoints / state.dailyGoal) * 100);
         progressBarEl.style.width = `${progressPercent}%`;
 
@@ -89,30 +114,36 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Логика добавления продукта
-    function addProduct(product) {
+    // Логика добавления продукта (теперь она асинхронная)
+    async function addProduct(product) {
         const previousPoints = state.currentPoints;
         state.currentPoints += product.points;
 
-        // Логика перевыполнения и пополнения резерва
+        let newReservePoints = state.reservePoints;
         if (previousPoints < state.dailyGoal && state.currentPoints >= state.dailyGoal) {
             const overflow = state.currentPoints - state.dailyGoal;
-            state.reservePoints += overflow;
-            tg.HapticFeedback.notificationOccurred('success'); // Виброотклик
+            newReservePoints += overflow;
+            tg.HapticFeedback.notificationOccurred('success');
         } else if (state.currentPoints > state.dailyGoal) {
-            state.reservePoints += product.points;
+            newReservePoints += product.points;
         }
-
-        saveState();
+        state.reservePoints = newReservePoints;
+        
+        // Обновляем UI сразу для отзывчивости
         updateUI();
+
+        // Отправляем данные в Firebase на сохранение
+        await saveData({ 
+            currentPoints: state.currentPoints, 
+            reservePoints: state.reservePoints,
+            lastUpdate: new Date().toISOString()
+        });
 
         // Отправляем данные боту для подтверждения
         tg.sendData(JSON.stringify({ name: product.name, points: product.points }));
     }
 
-
     // --- Инициализация приложения ---
-    loadState();
     renderProductList();
-    updateUI();
+    loadState(); // Запускаем загрузку данных из облака
 });
