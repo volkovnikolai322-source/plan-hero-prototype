@@ -9,6 +9,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const goalStatusEl = document.getElementById('goalStatus');
     const reservePointsEl = document.getElementById('reservePoints');
     const productListEl = document.getElementById('productList');
+    const mainScreen = document.getElementById('mainScreen');
+    const statsScreen = document.getElementById('statsScreen');
+    const navMainBtn = document.getElementById('navMain');
+    const navStatsBtn = document.getElementById('navStats');
+    const streakCountEl = document.getElementById('streakCount');
+    const monthYearEl = document.getElementById('monthYear');
+    const calendarGridEl = document.getElementById('calendarGrid');
+    const prevMonthBtn = document.getElementById('prevMonthBtn');
+    const nextMonthBtn = document.getElementById('nextMonthBtn');
 
     // --- Каталог товаров ---
     const products = [
@@ -26,62 +35,59 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPoints: 0,
         reservePoints: 0,
     };
+    let currentMonthDate = new Date();
     
-    // Создаем уникальный ID пользователя из данных Telegram
+    // --- Настройка Firebase ---
     const userId = tg.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : 'test-user-id';
-    // Получаем ссылку на "документ" пользователя в базе данных
     const userDocRef = db.collection('users').doc(userId);
+    const dailyProgressCollectionRef = userDocRef.collection('daily_progress');
 
     // --- Функции ---
 
-    // ЗАГРУЗКА данных из Firebase
     async function loadState() {
         try {
-            const doc = await userDocRef.get();
-            if (doc.exists) {
-                const data = doc.data();
-                const today = new Date().toDateString();
-                // Проверяем, когда данные обновлялись в последний раз
-                const lastUpdate = data.lastUpdate ? new Date(data.lastUpdate).toDateString() : null;
+            const userDoc = await userDocRef.get();
+            if (userDoc.exists) {
+                state.reservePoints = userDoc.data().reservePoints || 0;
+            }
 
-                // Если наступил новый день, сбрасываем дневной прогресс
-                if (today !== lastUpdate) {
-                    state.currentPoints = 0;
-                    state.reservePoints = data.reservePoints || 0;
-                    // Сохраняем сброшенный прогресс в базу
-                    await saveData({ currentPoints: 0, lastUpdate: new Date().toISOString() });
-                } else {
-                    // Если день тот же, просто загружаем данные
-                    state.currentPoints = data.currentPoints || 0;
-                    state.reservePoints = data.reservePoints || 0;
-                }
+            const todayId = new Date().toISOString().split('T')[0]; // Формат YYYY-MM-DD
+            const todayDoc = await dailyProgressCollectionRef.doc(todayId).get();
+            if (todayDoc.exists) {
+                state.currentPoints = todayDoc.data().points || 0;
             } else {
-                // Если пользователь зашел впервые, создаем для него запись в базе
-                await saveData({
-                    currentPoints: 0,
-                    reservePoints: 0,
-                    lastUpdate: new Date().toISOString(),
-                    telegramUsername: tg.initDataUnsafe?.user?.username || 'unknown'
-                });
+                state.currentPoints = 0;
             }
         } catch (error) {
-            console.error("Ошибка загрузки данных из Firebase:", error);
-            alert("Не удалось подключиться к базе данных. Проверьте подключение к интернету.");
+            console.error("Ошибка загрузки данных:", error);
+            alert("Не удалось загрузить данные. Проверьте соединение.");
         }
-        updateUI(); // Обновляем интерфейс после загрузки
+        updateUI();
     }
 
-    // СОХРАНЕНИЕ данных в Firebase
-    async function saveData(dataToSave) {
-        try {
-            // Метод set с { merge: true } обновляет только указанные поля, не стирая остальные
-            await userDocRef.set(dataToSave, { merge: true });
-        } catch (error) {
-            console.error("Ошибка сохранения данных в Firebase:", error);
+    async function addProduct(product) {
+        const previousPoints = state.currentPoints;
+        state.currentPoints += product.points;
+
+        let newReservePoints = state.reservePoints;
+        if (previousPoints < state.dailyGoal && state.currentPoints >= state.dailyGoal) {
+            const overflow = state.currentPoints - state.dailyGoal;
+            newReservePoints += overflow;
+            tg.HapticFeedback.notificationOccurred('success');
+        } else if (state.currentPoints > state.dailyGoal) {
+            newReservePoints += product.points;
         }
+        state.reservePoints = newReservePoints;
+        
+        updateUI();
+
+        const todayId = new Date().toISOString().split('T')[0];
+        await dailyProgressCollectionRef.doc(todayId).set({ points: state.currentPoints, goal: state.dailyGoal }, { merge: true });
+        await userDocRef.set({ reservePoints: state.reservePoints }, { merge: true });
+
+        tg.sendData(JSON.stringify({ name: product.name, points: product.points }));
     }
 
-    // Обновление всех элементов интерфейса
     function updateUI() {
         progressTextEl.textContent = `${state.currentPoints} / ${state.dailyGoal}`;
         reservePointsEl.textContent = state.reservePoints;
@@ -96,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Рендеринг списка товаров
     function renderProductList() {
         productListEl.innerHTML = '';
         products.forEach(product => {
@@ -114,36 +119,101 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Логика добавления продукта (теперь она асинхронная)
-    async function addProduct(product) {
-        const previousPoints = state.currentPoints;
-        state.currentPoints += product.points;
+    // --- Логика навигации и статистики ---
 
-        let newReservePoints = state.reservePoints;
-        if (previousPoints < state.dailyGoal && state.currentPoints >= state.dailyGoal) {
-            const overflow = state.currentPoints - state.dailyGoal;
-            newReservePoints += overflow;
-            tg.HapticFeedback.notificationOccurred('success');
-        } else if (state.currentPoints > state.dailyGoal) {
-            newReservePoints += product.points;
+    navMainBtn.addEventListener('click', () => {
+        mainScreen.classList.remove('hidden');
+        statsScreen.classList.add('hidden');
+        navMainBtn.classList.add('active');
+        navStatsBtn.classList.remove('active');
+    });
+
+    navStatsBtn.addEventListener('click', () => {
+        mainScreen.classList.add('hidden');
+        statsScreen.classList.remove('hidden');
+        navMainBtn.classList.remove('active');
+        navStatsBtn.classList.add('active');
+        loadStats();
+    });
+    
+    prevMonthBtn.addEventListener('click', () => {
+        currentMonthDate.setMonth(currentMonthDate.getMonth() - 1);
+        loadStats();
+    });
+    
+    nextMonthBtn.addEventListener('click', () => {
+        currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
+        loadStats();
+    });
+
+    async function loadStats() {
+        try {
+            const dailyDocs = await dailyProgressCollectionRef.get();
+            const dailyData = {};
+            dailyDocs.forEach(doc => {
+                dailyData[doc.id] = doc.data();
+            });
+            calculateStreak(dailyData);
+            renderCalendar(currentMonthDate, dailyData);
+        } catch (error) {
+            console.error("Ошибка загрузки статистики:", error);
         }
-        state.reservePoints = newReservePoints;
-        
-        // Обновляем UI сразу для отзывчивости
-        updateUI();
-
-        // Отправляем данные в Firebase на сохранение
-        await saveData({ 
-            currentPoints: state.currentPoints, 
-            reservePoints: state.reservePoints,
-            lastUpdate: new Date().toISOString()
-        });
-
-        // Отправляем данные боту для подтверждения
-        tg.sendData(JSON.stringify({ name: product.name, points: product.points }));
     }
 
-    // --- Инициализация приложения ---
+    function calculateStreak(dailyData) {
+        let streak = 0;
+        let today = new Date();
+        
+        while (true) {
+            const dateStr = today.toISOString().split('T')[0];
+            if (dailyData[dateStr] && dailyData[dateStr].points >= (dailyData[dateStr].goal || state.dailyGoal)) {
+                streak++;
+                today.setDate(today.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        streakCountEl.textContent = streak;
+    }
+
+    function renderCalendar(date, dailyData) {
+        calendarGridEl.innerHTML = '';
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        monthYearEl.textContent = date.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        
+        const dayHeaders = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+        dayHeaders.forEach(header => {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'day-header';
+            dayEl.textContent = header;
+            calendarGridEl.appendChild(dayEl);
+        });
+        
+        let startDay = (firstDayOfMonth === 0) ? 6 : firstDayOfMonth - 1; // Понедельник = 0
+
+        for (let i = 0; i < startDay; i++) {
+            calendarGridEl.appendChild(document.createElement('div'));
+        }
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dayEl = document.createElement('div');
+            dayEl.className = 'calendar-day';
+            dayEl.textContent = i;
+            
+            const dateStr = new Date(year, month, i).toISOString().split('T')[0];
+            if (dailyData[dateStr] && dailyData[dateStr].points >= (dailyData[dateStr].goal || state.dailyGoal)) {
+                dayEl.classList.add('day-goal-met');
+            }
+            
+            calendarGridEl.appendChild(dayEl);
+        }
+    }
+
+    // --- Инициализация ---
     renderProductList();
-    loadState(); // Запускаем загрузку данных из облака
+    loadState();
 });
