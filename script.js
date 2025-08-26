@@ -4,13 +4,11 @@ document.addEventListener('DOMContentLoaded', () => {
     tg.expand();
 
     // --- Элементы UI ---
-    const productListEl = document.getElementById('productList');
-    const todaysOrdersListEl = document.getElementById('todaysOrdersList');
-    // ... и все остальные selectors ...
     const progressTextEl = document.getElementById('progressText');
     const progressBarEl = document.getElementById('progressBar');
     const goalStatusEl = document.getElementById('goalStatus');
     const reservePointsEl = document.getElementById('reservePoints');
+    const productListEl = document.getElementById('productList');
     const mainScreen = document.getElementById('mainScreen');
     const statsScreen = document.getElementById('statsScreen');
     const navMainBtn = document.getElementById('navMain');
@@ -24,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const weekProgressBarEl = document.getElementById('weekProgressBar');
     const monthProgressTextEl = document.getElementById('monthProgressText');
     const monthProgressBarEl = document.getElementById('monthProgressBar');
+    const todaysOrdersListEl = document.getElementById('todaysOrdersList');
 
     // --- Состояние приложения ---
     let state = {
@@ -34,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
         weekGoal: 700,
         monthPoints: 0,
         monthGoal: 3000,
-        todaysOrders: [], // Массив для хранения сегодняшних заказов
+        todaysOrders: [],
     };
     let currentMonthDate = new Date();
     
@@ -44,7 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const userDocRef = db.collection('users').doc(userId);
     const dailyProgressCollectionRef = userDocRef.collection('daily_progress');
     const productsCollectionRef = db.collection('products');
-    
     const todayId = new Date().toISOString().split('T')[0];
     const todaysOrdersCollectionRef = dailyProgressCollectionRef.doc(todayId).collection('orders');
 
@@ -52,54 +50,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadState() {
         try {
-            const userDoc = await userDoc.get();
+            // 1. Загружаем основные данные (резерв)
+            const userDoc = await userDocRef.get();
             if (userDoc.exists) {
                 state.reservePoints = userDoc.data().reservePoints || 0;
             }
 
-            // Загружаем список сегодняшних заказов
-            const ordersSnapshot = await todaysOrdersCollectionRef.orderBy('timestamp').get();
+            // 2. Загружаем сегодняшние заказы
+            const ordersSnapshot = await todaysOrdersCollectionRef.orderBy('timestamp', 'desc').get();
             state.todaysOrders = ordersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
-            recalculateTotals(); // Пересчитываем все итоги на основе списка заказов
-            renderTodaysOrders();
-
-            // Загружаем данные для статистики недели/месяца
+            // 3. Загружаем данные за последний месяц для статистики
             const monthAgo = new Date();
             monthAgo.setDate(monthAgo.getDate() - 31);
             const monthAgoId = monthAgo.toISOString().split('T')[0];
-
             const snapshot = await dailyProgressCollectionRef.where(firebase.firestore.FieldPath.documentId(), ">=", monthAgoId).get();
             
-            const firstDayOfWeek = new Date();
-            firstDayOfWeek.setDate(firstDayOfWeek.getDate() - firstDayOfWeek.getDay() + (firstDayOfWeek.getDay() === 0 ? -6 : 1));
-            const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-
-            let weekPoints = 0;
-            let monthPoints = 0;
-
-            snapshot.forEach(doc => {
-                const docDate = new Date(doc.id);
-                if (docDate >= firstDayOfWeek) weekPoints += doc.data().points || 0;
-                if (docDate >= firstDayOfMonth) monthPoints += doc.data().points || 0;
-            });
-
-            state.weekPoints = weekPoints;
-            state.monthPoints = monthPoints;
+            recalculateAllStats(snapshot);
 
         } catch (error) {
             console.error("Ошибка загрузки данных:", error);
-            alert("Не удалось загрузить данные.");
+            alert("Не удалось загрузить данные. Проверьте соединение.");
         }
+        renderTodaysOrders();
         updateUI();
     }
-
-    // Пересчет итогов на основе списка state.todaysOrders
-    function recalculateTotals() {
-        state.currentPoints = state.todaysOrders.reduce((sum, order) => sum + order.points, 0);
-    }
     
-    // Отрисовка списка сегодняшних заказов
+    function recalculateAllStats(snapshot) {
+        // Пересчет сегодняшнего дня
+        state.currentPoints = state.todaysOrders.reduce((sum, order) => sum + order.points, 0);
+
+        // Пересчет недели и месяца
+        const today = new Date();
+        const firstDayOfWeek = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        let weekPoints = 0;
+        let monthPoints = 0;
+
+        snapshot.forEach(doc => {
+            const docDate = new Date(doc.id);
+            if (docDate >= firstDayOfWeek) weekPoints += doc.data().points || 0;
+            if (docDate >= firstDayOfMonth) monthPoints += doc.data().points || 0;
+        });
+        state.weekPoints = weekPoints;
+        state.monthPoints = monthPoints;
+    }
+
     function renderTodaysOrders() {
         todaysOrdersListEl.innerHTML = '';
         if (state.todaysOrders.length === 0) {
@@ -116,79 +113,79 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <button class="delete-order-btn" data-id="${order.id}" data-points="${order.points}">❌</button>
             `;
+            item.querySelector('.delete-order-btn').addEventListener('click', () => deleteOrder(order.id, order.points));
             todaysOrdersListEl.appendChild(item);
         });
     }
 
-    // Обработчик для удаления заказа (вешаем на родителя)
-    todaysOrdersListEl.addEventListener('click', (event) => {
-        if (event.target.classList.contains('delete-order-btn')) {
-            const orderId = event.target.dataset.id;
-            const pointsToSubtract = parseInt(event.target.dataset.points, 10);
-            deleteOrder(orderId, pointsToSubtract);
-        }
-    });
-
     async function addProduct(product) {
-        // ... (логика резервного фонда, как и раньше) ...
         const previousPoints = state.currentPoints;
         const newTotalPoints = state.currentPoints + product.points;
         let newReservePoints = state.reservePoints;
+
         if (previousPoints < state.dailyGoal && newTotalPoints >= state.dailyGoal) {
-            const overflow = newTotalPoints - state.dailyGoal;
-            newReservePoints += overflow;
-            tg.HapticFeedback.notificationOccurred('success');
+            newReservePoints += (newTotalPoints - state.dailyGoal);
         } else if (newTotalPoints > state.dailyGoal) {
             newReservePoints += product.points;
         }
         
-        // 1. Добавляем заказ в подколлекцию
-        const newOrderRef = await todaysOrdersCollectionRef.add({
-            name: product.name,
-            points: product.points,
-            timestamp: new Date()
-        });
+        try {
+            const newOrder = { name: product.name, points: product.points, timestamp: new Date() };
+            const newOrderRef = await todaysOrdersCollectionRef.add(newOrder);
+            
+            state.todaysOrders.unshift({ id: newOrderRef.id, ...newOrder });
+            state.currentPoints = newTotalPoints;
+            state.weekPoints += product.points;
+            state.monthPoints += product.points;
+            state.reservePoints = newReservePoints;
 
-        // 2. Обновляем итоговые очки за день
-        await dailyProgressCollectionRef.doc(todayId).set({ points: newTotalPoints, goal: state.dailyGoal }, { merge: true });
-        
-        // 3. Обновляем резервный фонд
-        await userDocRef.set({ reservePoints: newReservePoints }, { merge: true });
-
-        // 4. Обновляем локальное состояние и UI
-        state.todaysOrders.push({ id: newOrderRef.id, ...product });
-        await loadState(); // Перезагружаем все состояние для синхронизации
+            renderTodaysOrders();
+            updateUI();
+            
+            await dailyProgressCollectionRef.doc(todayId).set({ points: newTotalPoints, goal: state.dailyGoal }, { merge: true });
+            await userDocRef.set({ reservePoints: newReservePoints }, { merge: true });
+            tg.sendData(JSON.stringify({ name: product.name, points: product.points }));
+        } catch (error) {
+            console.error("Ошибка добавления заказа:", error);
+            alert("Не удалось добавить заказ.");
+        }
     }
-    
+
     async function deleteOrder(orderId, pointsToSubtract) {
         if (!confirm("Вы уверены, что хотите удалить этот заказ?")) return;
 
-        // ... (логика вычета из резервного фонда) ...
         const previousPoints = state.currentPoints;
         const newTotalPoints = state.currentPoints - pointsToSubtract;
         let newReservePoints = state.reservePoints;
+
         if (previousPoints >= state.dailyGoal && newTotalPoints < state.dailyGoal) {
-            const overflow = previousPoints - state.dailyGoal;
-            newReservePoints -= overflow;
+            newReservePoints -= (previousPoints - state.dailyGoal);
         } else if (newTotalPoints >= state.dailyGoal) {
             newReservePoints -= pointsToSubtract;
         }
-        newReservePoints = Math.max(0, newReservePoints); // Резерв не может быть отрицательным
+        newReservePoints = Math.max(0, newReservePoints);
 
-        // 1. Удаляем заказ из подколлекции
-        await todaysOrdersCollectionRef.doc(orderId).delete();
+        try {
+            await todaysOrdersCollectionRef.doc(orderId).delete();
 
-        // 2. Обновляем итоговые очки за день
-        await dailyProgressCollectionRef.doc(todayId).set({ points: newTotalPoints }, { merge: true });
-        
-        // 3. Обновляем резервный фонд
-        await userDocRef.set({ reservePoints: newReservePoints }, { merge: true });
-        
-        // 4. Обновляем локальное состояние и UI
-        await loadState(); // Перезагружаем все состояние для синхронизации
+            state.todaysOrders = state.todaysOrders.filter(order => order.id !== orderId);
+            state.currentPoints = newTotalPoints;
+            state.weekPoints -= pointsToSubtract;
+            state.monthPoints -= pointsToSubtract;
+            state.reservePoints = newReservePoints;
+            
+            renderTodaysOrders();
+            updateUI();
+
+            await dailyProgressCollectionRef.doc(todayId).set({ points: newTotalPoints }, { merge: true });
+            await userDocRef.set({ reservePoints: newReservePoints }, { merge: true });
+
+        } catch (error) {
+            console.error("Ошибка удаления заказа:", error);
+            alert("Не удалось удалить заказ.");
+        }
     }
-
-    // ... (весь остальной код без изменений: updateUI, renderProductList, навигация, статистика, календарь, инициализация) ...
+    
     function updateUI() {
         progressTextEl.textContent = `${state.currentPoints} / ${state.dailyGoal}`;
         let progressPercent = Math.min(100, (state.currentPoints / state.dailyGoal) * 100);
@@ -203,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
         monthProgressBarEl.style.width = `${progressPercent}%`;
         if(reservePointsEl) reservePointsEl.textContent = state.reservePoints;
     }
+
     async function renderProductList() {
         productListEl.innerHTML = '<p>Загрузка товаров...</p>';
         try {
@@ -231,12 +229,14 @@ document.addEventListener('DOMContentLoaded', () => {
             productListEl.innerHTML = '<p>Не удалось загрузить список товаров.</p>';
         }
     }
+
     navMainBtn.addEventListener('click', () => {
         mainScreen.classList.remove('hidden');
         statsScreen.classList.add('hidden');
         navMainBtn.classList.add('active');
         navStatsBtn.classList.remove('active');
     });
+
     navStatsBtn.addEventListener('click', () => {
         mainScreen.classList.add('hidden');
         statsScreen.classList.remove('hidden');
@@ -244,21 +244,22 @@ document.addEventListener('DOMContentLoaded', () => {
         navStatsBtn.classList.add('active');
         loadStats();
     });
+    
     prevMonthBtn.addEventListener('click', () => {
         currentMonthDate.setMonth(currentMonthDate.getMonth() - 1);
         loadStats();
     });
+    
     nextMonthBtn.addEventListener('click', () => {
         currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
         loadStats();
     });
+
     async function loadStats() {
         try {
             const dailyDocs = await dailyProgressCollectionRef.get();
             const dailyData = {};
-            dailyDocs.forEach(doc => {
-                dailyData[doc.id] = doc.data();
-            });
+            dailyDocs.forEach(doc => { dailyData[doc.id] = doc.data(); });
             calculateStreak(dailyData);
             renderCalendar(currentMonthDate, dailyData);
             if(reservePointsEl) reservePointsEl.textContent = state.reservePoints;
@@ -266,6 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Ошибка загрузки статистики:", error);
         }
     }
+
     function calculateStreak(dailyData) {
         let streak = 0;
         let today = new Date();
@@ -274,12 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dailyData[dateStr] && dailyData[dateStr].points >= (dailyData[dateStr].goal || state.dailyGoal)) {
                 streak++;
                 today.setDate(today.getDate() - 1);
-            } else {
-                break;
-            }
+            } else { break; }
         }
         streakCountEl.textContent = streak;
     }
+
     function renderCalendar(date, dailyData) {
         calendarGridEl.innerHTML = '';
         const year = date.getFullYear();
@@ -309,6 +310,8 @@ document.addEventListener('DOMContentLoaded', () => {
             calendarGridEl.appendChild(dayEl);
         }
     }
+    
+    // --- Инициализация ---
     if (userId === String(ADMIN_USER_ID)) {
         const nav = document.querySelector('.navigation');
         const adminButton = document.createElement('button');
