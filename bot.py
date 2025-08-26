@@ -1,23 +1,20 @@
-print("!!! ЗАПУЩЕНА ТЕСТОВАЯ ВЕРСИЯ БЕЗ JOBQUEUE !!!")
-
 import logging
 import json
 from config import BOT_TOKEN
 
-# Упрощаем импорты, убираем JobQueue
 from telegram.ext import (
     Application,
     CommandHandler,
     MessageHandler,
     filters,
     ContextTypes,
+    JobQueue,
 )
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
+from pytz import timezone
 
-# URL вашего веб-приложения
 WEB_APP_URL = "https://your-username.github.io/plan-hero-prototype/webapp/"
 
-# Настройка логирования
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -41,8 +38,11 @@ async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
-    # Используем самую простую инициализацию без JobQueue
-    application = Application.builder().token(BOT_TOKEN).build()
+    # Возвращаем рабочий код с ручной настройкой часового пояса
+    job_queue = JobQueue()
+    job_queue.scheduler.timezone = timezone("Europe/Moscow")
+
+    application = Application.builder().token(BOT_TOKEN).job_queue(job_queue).build()
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(
