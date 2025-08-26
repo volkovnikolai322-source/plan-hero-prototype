@@ -14,7 +14,7 @@ from telegram.ext import (
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
 from pytz import timezone  # Добавляем импорт для часовых поясов
 
-# ВАЖНО: Укажите URL, где размещено ваше веб-приложение (например, с GitHub Pages)
+# ВАЖНО: Укажите URL, где размещено ваше веб-приложение
 WEB_APP_URL = "https://your-username.github.io/plan-hero-prototype/webapp/"
 
 # Настройка логирования для отладки
@@ -50,7 +50,7 @@ async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Основная функция для запуска бота."""
 
-    # --- НАЧАЛО ИЗМЕНЕНИЙ ---
+    # --- НАЧАЛО ИСПРАВЛЕНИЯ ОШИБКИ ЧАСОВОГО ПОЯСА ---
 
     # Создаем очередь задач с явно указанным часовым поясом, чтобы избежать ошибки
     job_queue = JobQueue()
@@ -59,7 +59,7 @@ def main():
     # Собираем приложение, передавая ему созданную очередь задач
     application = Application.builder().token(BOT_TOKEN).job_queue(job_queue).build()
 
-    # --- КОНЕЦ ИЗМЕНЕНИЙ ---
+    # --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
     # Регистрируем обработчики команд
     application.add_handler(CommandHandler("start", start))
