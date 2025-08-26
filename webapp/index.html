@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>План-Герой</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1 class="title">План на сегодня</h1>
+            <div class="progress-info">
+                <span id="progressText">0 / 100</span>
+                <span id="goalStatus"></span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </header>
+
+        <section class="reserve-fund">
+            <h2>💰 Резервный Фонд</h2>
+            <p><span id="reservePoints">0</span> очков</p>
+        </section>
+
+        <main class="product-list-container">
+            <h2>Добавить заказ</h2>
+            <div id="productList" class="product-list">
+                </div>
+        </main>
+    </div>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
