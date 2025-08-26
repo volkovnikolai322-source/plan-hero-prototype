@@ -8,34 +8,56 @@
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1 class="title">План на сегодня</h1>
-            <div class="progress-info">
-                <span id="progressText">0 / 100</span>
-                <span id="goalStatus"></span>
-            </div>
-            <div class="progress-bar-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-        </header>
-
-        <section class="reserve-fund">
-            <h2>💰 Резервный Фонд</h2>
-            <p><span id="reservePoints">0</span> очков</p>
-        </section>
-
-        <main class="product-list-container">
-            <h2>Добавить заказ</h2>
-            <div id="productList" class="product-list">
+        <div id="mainScreen">
+            <header class="header">
+                <h1 class="title">План на сегодня</h1>
+                <div class="progress-info">
+                    <span id="progressText">0 / 100</span>
+                    <span id="goalStatus"></span>
                 </div>
-        </main>
+                <div class="progress-bar-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+            </header>
+
+            <section class="reserve-fund">
+                <h2>💰 Резервный Фонд</h2>
+                <p><span id="reservePoints">0</span> очков</p>
+            </section>
+
+            <main class="product-list-container">
+                <h2>Добавить заказ</h2>
+                <div id="productList" class="product-list"></div>
+            </main>
+        </div>
+
+        <div id="statsScreen" class="hidden">
+            <header class="header">
+                <h1 class="title">Статистика</h1>
+            </header>
+            <section class="streak-section">
+                <h2>🔥 Ударный режим</h2>
+                <p><span id="streakCount">0</span> дней подряд</p>
+            </section>
+            <section class="calendar-section">
+                <div class="calendar-header">
+                    <button id="prevMonthBtn">&lt;</button>
+                    <h2 id="monthYear"></h2>
+                    <button id="nextMonthBtn">&gt;</button>
+                </div>
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </section>
+        </div>
+
+        <nav class="navigation">
+            <button id="navMain" class="active">Главная</button>
+            <button id="navStats">Статистика</button>
+        </nav>
     </div>
 
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-
     <script src="firebase-init.js"></script>
     <script src="script.js"></script>
 </body>
